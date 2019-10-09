@@ -9,13 +9,13 @@ Alternative approaches suffer from drawbacks:
 * `Content Search` index should cover only certain parts of content tree ([5.8 Developer's Guide to Item Buckets and Search](https://doc.sitecore.com/legacy-docs/SC71/developers-guide-to-item-buckets-and-search-sc7-a4.pdf)), hence logic is to be developed to union results from different indexes. Secondly, being a metadata built from actual data, it may not be 100 % accurate all the time.
 * `Sitecore query` is executed via application layer and gets all the performance penalties for data fetch/processing by buisness logic.
 
-FastQuery is consuming limited SQL resource turning it into a bottleneck in almost every solution as volume of data grows.
+As Fast Queries consume limited SQL resource, they turn to bottlenecks in almost every solution as volume of data grows.
 
-Should the drawback be mitigated, Sitecore Fast Queries would become first class citizens again!
+Should the drawback be mitigated, Sitecore Fast Queries would have the potential to become first class citizens again!
 
 ## Implementation detail
 
-Publishing targets (f.e. `web` database) is known to be updated only by publishing ending with event (like `publish:end`).
+Publishing target (f.e. `web` database) is known to be updated only by publishing mechanism (like `publish:end`).
 
 It leaves space for caching Fast Query results to avoid hammering SQL server (since requests would produce exactly same results in case no data modifications in between).
 
