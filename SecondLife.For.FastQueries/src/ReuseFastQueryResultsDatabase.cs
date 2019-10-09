@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using System.Xml;
 using Sitecore;
 using Sitecore.Collections;
 using Sitecore.Data;
@@ -11,6 +12,7 @@ using Sitecore.Data.DataProviders;
 using Sitecore.Data.Eventing;
 using Sitecore.Data.Items;
 using Sitecore.Diagnostics;
+using Sitecore.Events;
 using Sitecore.Globalization;
 using Sitecore.Resources;
 using Sitecore.SecurityModel;
@@ -37,7 +39,7 @@ namespace SecondLife.For.FastQueries
 
         public override Item SelectSingleItem(string query)
         {
-            if (!CacheFastQueryResults || !IsFast(query)) 
+            if (!CacheFastQueryResults || !IsFast(query))
             {
                 return _database.SelectSingleItem(query);
             }
@@ -47,7 +49,7 @@ namespace SecondLife.For.FastQueries
                 using (new SecurityDisabler())
                 {
                     return _database.SelectSingleItem(fastQuery);
-                }                
+                }
             });
 
             if (cached?.Access.CanRead() == true)
@@ -64,6 +66,22 @@ namespace SecondLife.For.FastQueries
         public override Item[] SelectItems(string query)
         {
             return _database.SelectItems(query);
+        }
+
+        protected override void OnConstructed(XmlNode configuration)
+        {
+            if (!CacheFastQueryResults)
+            {
+                return;
+            }
+
+            Event.Subscribe("publish:end", PublishEnd);
+            Event.Subscribe("publish:end:remote", PublishEnd);
+        }
+
+        private void PublishEnd(object sender, EventArgs e)
+        {
+            _singleItems.Clear();
         }
 
         #endregion
