@@ -13,7 +13,7 @@ namespace SecondLife.For.FastQueries
 
         private readonly ConcurrentDictionary<string, Database> _databases;
 
-        public DefaultFactoryForCacheableFastQuery(BaseComparerFactory comparerFactory, IServiceProvider serviceProvider) 
+        public DefaultFactoryForCacheableFastQuery(BaseComparerFactory comparerFactory, IServiceProvider serviceProvider)
             : base(comparerFactory, serviceProvider)
         {
             _databases = new ConcurrentDictionary<string, Database>(StringComparer.OrdinalIgnoreCase);
@@ -22,30 +22,23 @@ namespace SecondLife.For.FastQueries
         public override Database GetDatabase(string name, bool assert)
         {
             Assert.ArgumentNotNull(name, nameof(name));
+
             if (name.IndexOfAny(ForbiddenChars) >= 0)
             {
                 Assert.IsFalse(assert, nameof(assert));
                 return null;
             }
 
-            if (_databases.TryGetValue(name, out var cached))
+            var database = _databases.GetOrAdd(name, dbName =>
             {
-                if (assert && cached == null)
+                var configPath = "fastQueryDatabases/database[@id='" + dbName + "']";
+                if (CreateObject(configPath, assert: false) is Database result)
                 {
-                    throw new InvalidOperationException($"Could not create database: {name}");
+                    return result;
                 }
-            }
 
-            var configPath = "fastQueryDatabases/database[@id='" + name + "']";
-
-            if (CreateObject(configPath, assert: false) is Database database)
-            {
-                _databases.TryAdd(name, database);
-                return database;
-            }
-
-            database = base.GetDatabase(name, assert: false);
-            _databases.TryAdd(name, database);
+                return base.GetDatabase(dbName, assert: false);
+            });
 
             if (assert && database == null)
             {
