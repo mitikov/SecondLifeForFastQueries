@@ -32,7 +32,10 @@ namespace SecondLife.For.FastQueries
         private readonly Database _database;
 
         private readonly ConcurrentDictionary<string, Item> _singleItems = new ConcurrentDictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+        private readonly LockSet _singleItemLocks = new LockSet();
+
         private readonly ConcurrentDictionary<string, IReadOnlyCollection<Item>> _multipleItems = new ConcurrentDictionary<string, IReadOnlyCollection<Item>>(StringComparer.OrdinalIgnoreCase);
+        private readonly LockSet _multipleItemsLock = new LockSet();
 
         public ReuseFastQueryResultsDatabase(Database database)
         {
@@ -52,13 +55,21 @@ namespace SecondLife.For.FastQueries
                 return _database.SelectSingleItem(query);
             }
 
-            var cached = _singleItems.GetOrAdd(query, fastQuery =>
+            if (!_singleItems.TryGetValue(query, out var cached))
             {
-                using (new SecurityDisabler())
+                lock (_singleItemLocks.GetLock(query))
                 {
-                    return _database.SelectSingleItem(fastQuery);
+                    if (!_singleItems.TryGetValue(query, out cached))
+                    {
+                        using (new SecurityDisabler())
+                        {
+                            cached = _database.SelectSingleItem(query);
+                        }
+
+                        _singleItems.TryAdd(query, cached);
+                    }
                 }
-            });
+            }
 
             if (cached?.Access.CanRead() == true)
             {
@@ -76,13 +87,21 @@ namespace SecondLife.For.FastQueries
                 return _database.SelectItems(query);
             }
 
-            var cached = _multipleItems.GetOrAdd(query, fastQuery =>
+            if (!_multipleItems.TryGetValue(query, out var cached))
             {
-                using (new SecurityDisabler())
+                lock (_multipleItemsLock.GetLock(query))
                 {
-                    return _database.SelectItems(fastQuery);
+                    if (!_multipleItems.TryGetValue(query, out cached))
+                    {
+                        using (new SecurityDisabler())
+                        {
+                            cached = _database.SelectItems(query);
+                        }
+
+                        _multipleItems.TryAdd(query, cached);
+                    }
                 }
-            });
+            }
 
             var results = from item in cached ?? Array.Empty<Item>()
                           where item.Access.CanRead()
