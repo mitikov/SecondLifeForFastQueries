@@ -7,6 +7,10 @@ using Sitecore.Diagnostics;
 
 namespace SecondLife.For.FastQueries
 {
+    /// <summary>
+    /// Finds databases under 'fastQueryDatabases' node (to avoid collisions with OOB Sitecore logic).
+    /// <para>Since databases are always registered as 'singleInstance' in config, we could cache instances.</para>
+    /// </summary>
     public sealed class DefaultFactoryForCacheableFastQuery : DefaultFactory
     {
         private static readonly char[] ForbiddenChars = "[\\\"*^';&></=]".ToCharArray();

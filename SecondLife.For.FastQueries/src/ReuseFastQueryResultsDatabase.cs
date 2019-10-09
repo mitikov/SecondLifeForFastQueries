@@ -22,11 +22,16 @@ using Version = Sitecore.Data.Version;
 
 namespace SecondLife.For.FastQueries
 {
+    /// <summary>
+    /// Optionally provides caching layer for fast query results on top of inner <see cref="Database"/>.
+    /// <para>Caching is controlled over <see cref="CacheFastQueryResults"/> config property.</para>
+    /// <para>The caching layer is scavenged when publish ends.</para>
+    /// </summary>
     public sealed class ReuseFastQueryResultsDatabase : Database
     {
         private readonly Database _database;
-        private readonly ConcurrentDictionary<string, Item> _singleItems = new ConcurrentDictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
 
+        private readonly ConcurrentDictionary<string, Item> _singleItems = new ConcurrentDictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, IReadOnlyCollection<Item>> _multipleItems = new ConcurrentDictionary<string, IReadOnlyCollection<Item>>(StringComparer.OrdinalIgnoreCase);
 
         public ReuseFastQueryResultsDatabase(Database database)
@@ -36,7 +41,7 @@ namespace SecondLife.For.FastQueries
         }
 
         [UsedImplicitly]
-        private bool CacheFastQueryResults { get; set; }
+        public bool CacheFastQueryResults { get; private set; }
 
         #region Useful code
 
