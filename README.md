@@ -1,4 +1,4 @@
-# Second Life for FastQueries
+# Second Life for Sitecore Fast Queries
 
 [Sitecore Fast Query mechanism](https://doc.sitecore.com/SdnArchive/upload/sdn5/developer/using%20sitecore%20fast%20query/using%20sitecore%20fast%20query.pdf) allows fetching items via direct SQL queries.
 
