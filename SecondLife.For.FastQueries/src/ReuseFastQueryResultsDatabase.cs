@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Xml;
 using Sitecore;
@@ -25,6 +26,8 @@ namespace SecondLife.For.FastQueries
     {
         private readonly Database _database;
         private readonly ConcurrentDictionary<string, Item> _singleItems = new ConcurrentDictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
+
+        private readonly ConcurrentDictionary<string, IReadOnlyCollection<Item>> _multipleItems = new ConcurrentDictionary<string, IReadOnlyCollection<Item>>(StringComparer.OrdinalIgnoreCase);
 
         public ReuseFastQueryResultsDatabase(Database database)
         {
@@ -61,12 +64,29 @@ namespace SecondLife.For.FastQueries
             return null;
         }
 
-        private bool IsFast(string query) => query?.StartsWith("fast:/") == true;
-
         public override Item[] SelectItems(string query)
         {
-            return _database.SelectItems(query);
+            if (!CacheFastQueryResults || !IsFast(query))
+            {
+                return _database.SelectItems(query);
+            }
+
+            var cached = _multipleItems.GetOrAdd(query, fastQuery =>
+            {
+                using (new SecurityDisabler())
+                {
+                    return _database.SelectItems(fastQuery);
+                }
+            });
+
+            var results = from item in cached ?? Array.Empty<Item>()
+                          where item.Access.CanRead()
+                          select new Item(item.ID, item.InnerData, this);
+
+            return results.ToArray();
         }
+
+        private static bool IsFast(string query) => query?.StartsWith("fast:/") == true;
 
         protected override void OnConstructed(XmlNode configuration)
         {
@@ -82,6 +102,7 @@ namespace SecondLife.For.FastQueries
         private void PublishEnd(object sender, EventArgs e)
         {
             _singleItems.Clear();
+            _multipleItems.Clear();
         }
 
         #endregion
