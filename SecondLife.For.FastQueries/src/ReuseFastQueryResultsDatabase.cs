@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
+using Sitecore;
 using Sitecore.Collections;
 using Sitecore.Data;
 using Sitecore.Data.Archiving;
@@ -10,14 +13,16 @@ using Sitecore.Data.Items;
 using Sitecore.Diagnostics;
 using Sitecore.Globalization;
 using Sitecore.Resources;
+using Sitecore.SecurityModel;
 using Sitecore.Workflows;
 using Version = Sitecore.Data.Version;
 
 namespace SecondLife.For.FastQueries
-{    
+{
     public sealed class ReuseFastQueryResultsDatabase : Database
     {
         private readonly Database _database;
+        private readonly ConcurrentDictionary<string, Item> _singleItems = new ConcurrentDictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
 
         public ReuseFastQueryResultsDatabase(Database database)
         {
@@ -25,12 +30,36 @@ namespace SecondLife.For.FastQueries
             _database = database;
         }
 
+        [UsedImplicitly]
+        private bool CacheFastQueryResults { get; set; }
+
         #region Useful code
 
         public override Item SelectSingleItem(string query)
         {
-            return _database.SelectSingleItem(query);
+            if (!CacheFastQueryResults || !IsFast(query)) 
+            {
+                return _database.SelectSingleItem(query);
+            }
+
+            var cached = _singleItems.GetOrAdd(query, fastQuery =>
+            {
+                using (new SecurityDisabler())
+                {
+                    return _database.SelectSingleItem(fastQuery);
+                }                
+            });
+
+            if (cached?.Access.CanRead() == true)
+            {
+                var copy = new Item(cached.ID, cached.InnerData, this);
+                return copy;
+            }
+
+            return null;
         }
+
+        private bool IsFast(string query) => query?.StartsWith("fast:/") == true;
 
         public override Item[] SelectItems(string query)
         {
